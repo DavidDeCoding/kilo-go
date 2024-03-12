@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 
@@ -12,24 +13,45 @@ type EditorConfig struct {
 }
 
 var editorConfig = EditorConfig{}
+var byteBuffer = bytes.Buffer{}
+var KILO_VERSION = "1.0.0"
 
 func editorDrawRows() {
 	for rowNo := 0; rowNo < editorConfig.screenrows; rowNo++ {
-		os.Stdout.Write([]byte("~"))
+		if rowNo == editorConfig.screenrows/3 {
+
+			welcome := fmt.Sprintf("Kilo editor -- version %s", KILO_VERSION)
+
+			padding := (editorConfig.screencols - len(welcome)) / 2
+			if padding > 0 {
+				byteBuffer.Write([]byte("~"))
+			}
+			for ; padding > 0; padding-- {
+				byteBuffer.Write([]byte(" "))
+			}
+
+			byteBuffer.WriteString(welcome)
+
+		} else {
+			byteBuffer.Write([]byte("~"))
+		}
+
+		byteBuffer.Write([]byte("\x1b[K"))
 
 		if rowNo < editorConfig.screenrows-1 {
-			os.Stdout.Write([]byte("\r\n"))
+			byteBuffer.Write([]byte("\r\n"))
 		}
 	}
 }
 
 func editorRefreshScreen() {
-	os.Stdout.Write([]byte("\x1b[2J"))
-	os.Stdout.Write([]byte("\x1b[H"))
+	byteBuffer.Write([]byte("\x1b[H"))
 
 	editorDrawRows()
 
-	os.Stdout.Write([]byte("\x1b[H"))
+	byteBuffer.Write([]byte("\x1b[H"))
+
+	os.Stdout.Write(byteBuffer.Bytes())
 }
 
 func editorProcessKeyPress() {
