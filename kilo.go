@@ -13,8 +13,22 @@ type EditorConfig struct {
 
 var editorConfig = EditorConfig{}
 
+func editorDrawRows() {
+	for rowNo := 0; rowNo < editorConfig.screenrows; rowNo++ {
+		os.Stdout.Write([]byte("~"))
+
+		if rowNo < editorConfig.screenrows-1 {
+			os.Stdout.Write([]byte("\r\n"))
+		}
+	}
+}
+
 func editorRefreshScreen() {
 	os.Stdout.Write([]byte("\x1b[2J"))
+	os.Stdout.Write([]byte("\x1b[H"))
+
+	editorDrawRows()
+
 	os.Stdout.Write([]byte("\x1b[H"))
 }
 
