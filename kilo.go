@@ -4,56 +4,66 @@ import (
 	"fmt"
 	"os"
 
-	// "github.com/pkg/term/termios"
 	"golang.org/x/term" // https://pkg.go.dev/golang.org/x/term#section-readme
 )
 
-// var orig_termios = unix.Termios{}
-
-func die(str string) {
-	fmt.Println(str)
-	os.Exit(1)
+type EditorConfig struct {
+	screenrows, screencols int
 }
 
-// func disableRawMode() {
-// 	err := termios.Tcsetattr(uintptr(os.Stdin.Fd()), termios.TCSAFLUSH, &orig_termios)
-// 	if err != nil {
-// 		die(err.Error())
-// 	}
-// }
+var editorConfig = EditorConfig{}
 
-// func enableRawMode() {
-// 	err := termios.Tcgetattr(uintptr(os.Stdin.Fd()), &orig_termios)
-// 	if err != nil {
-// 		die(err.Error())
-// 	}
+func editorRefreshScreen() {
+	os.Stdout.Write([]byte("\x1b[2J"))
+	os.Stdout.Write([]byte("\x1b[H"))
+}
 
-// 	raw := unix.Termios{}
-// 	termios.Cfmakeraw(&raw)
+func editorProcessKeyPress() {
+	var ch []byte = make([]byte, 1)
+	os.Stdin.Read(ch)
 
-// 	err = termios.Tcsetattr(uintptr(os.Stdin.Fd()), termios.TCSAFLUSH, &raw)
-// 	if err != nil {
-// 		die(err.Error())
-// 	}
-// }
+	if ch[0] == 'q' {
+		os.Stdout.Write([]byte("\x1b[2J"))
+		os.Stdout.Write([]byte("\x1b[H"))
 
-func main() {
-	// enableRawMode()
-	// defer disableRawMode()
+		os.Exit(0)
+	}
+}
 
+func initEditor() {
+	width, height, err := term.GetSize(int(os.Stdin.Fd()))
+	if err != nil {
+		die(err.Error())
+	}
+	editorConfig.screenrows = height
+	editorConfig.screencols = width
+}
+
+func enableRawMode() *term.State {
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
 		die(err.Error())
 	}
 
+	return oldState
+}
+
+func die(str string) {
+	os.Stdout.Write([]byte("\x1b[2J"))
+	os.Stdout.Write([]byte("\x1b[H"))
+
+	fmt.Println(str)
+	os.Exit(1)
+}
+
+func main() {
+	oldState := enableRawMode()
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
 
-	for {
-		var ch []byte = make([]byte, 1)
-		os.Stdin.Read(ch)
+	initEditor()
 
-		if ch[0] == 'q' {
-			break
-		}
+	for {
+		editorRefreshScreen()
+		editorProcessKeyPress()
 	}
 }
