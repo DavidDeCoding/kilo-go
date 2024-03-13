@@ -64,13 +64,13 @@ func editorRefreshScreen() {
 }
 
 const (
-	ARROW_LEFT = 'a'
-	ARROW_RIGHT = 'd'
-	ARROW_UP = 'w'
-	ARROW_DOWN = 's'
+	ARROW_LEFT = iota + 1000
+	ARROW_RIGHT
+	ARROW_UP
+	ARROW_DOWN
 )
 
-func editorMoveCursor(key byte) {
+func editorMoveCursor(key int) {
 	switch key {
 	case ARROW_LEFT:
 		if editorConfig.cursor_x != 0 {
@@ -92,10 +92,9 @@ func editorMoveCursor(key byte) {
 }
 
 func editorProcessKeyPress() {
-	var ch []byte = make([]byte, 1)
-	os.Stdin.Read(ch)
+	ch := editorReadKey()
 
-	switch ch[0] {
+	switch ch {
 	case 'q':
 		os.Stdout.Write([]byte("\x1b[2J"))
 		os.Stdout.Write([]byte("\x1b[H"))
@@ -103,8 +102,37 @@ func editorProcessKeyPress() {
 		os.Exit(0)
 	
 	case ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT:
-		editorMoveCursor(ch[0])
+		editorMoveCursor(ch)
 	}
+}
+
+func editorReadKey() int {
+	var ch []byte = make([]byte, 4)
+	c, err := os.Stdin.Read(ch)
+	if err != nil {
+		die(err.Error())
+	}
+	
+	if c == 1 {
+		return int(ch[0])
+	} else if c == 2 {
+		return '\x1b'
+	} else if ch[0] == '\x1b' {
+		if ch[1] == '[' {
+			switch ch[2] {
+			case 'A':
+				return ARROW_UP
+			case 'B':
+				return ARROW_DOWN
+			case 'C':
+				return ARROW_RIGHT
+			case 'D':
+				return ARROW_LEFT
+			}
+		}
+	}
+	
+	return '\x1b'
 }
 
 func initEditor() {
