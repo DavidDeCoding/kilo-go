@@ -10,8 +10,12 @@ import (
 
 var KILO_VERSION = "1.0.0"
 
+func CONTROL_KEY(key byte) int {
+	return int(key & 0x1f)
+}
+
 type EditorConfig struct {
-	cursor_y, cursor_x int
+	cursor_y, cursor_x     int
 	screenrows, screencols int
 }
 
@@ -54,9 +58,9 @@ func editorRefreshScreen() {
 	// byteBuffer.Write([]byte("\x1b[H"))
 	byteBuffer.WriteString(
 		fmt.Sprintf(
-			"\x1b[%d;%dH", 
-			editorConfig.cursor_y + 1,
-			editorConfig.cursor_x + 1,
+			"\x1b[%d;%dH",
+			editorConfig.cursor_y+1,
+			editorConfig.cursor_x+1,
 		),
 	)
 
@@ -68,6 +72,11 @@ const (
 	ARROW_RIGHT
 	ARROW_UP
 	ARROW_DOWN
+	DEL_KEY
+	HOME_KEY
+	END_KEY
+	PAGE_UP
+	PAGE_DOWN
 )
 
 func editorMoveCursor(key int) {
@@ -77,7 +86,7 @@ func editorMoveCursor(key int) {
 			editorConfig.cursor_x -= 1
 		}
 	case ARROW_RIGHT:
-		if editorConfig.cursor_x != editorConfig.screencols - 1 {
+		if editorConfig.cursor_x != editorConfig.screencols-1 {
 			editorConfig.cursor_x += 1
 		}
 	case ARROW_UP:
@@ -85,7 +94,7 @@ func editorMoveCursor(key int) {
 			editorConfig.cursor_y -= 1
 		}
 	case ARROW_DOWN:
-		if editorConfig.cursor_y != editorConfig.screenrows - 1 {
+		if editorConfig.cursor_y != editorConfig.screenrows-1 {
 			editorConfig.cursor_y += 1
 		}
 	}
@@ -95,12 +104,24 @@ func editorProcessKeyPress() {
 	ch := editorReadKey()
 
 	switch ch {
-	case 'q':
+	case CONTROL_KEY('q'):
 		os.Stdout.Write([]byte("\x1b[2J"))
 		os.Stdout.Write([]byte("\x1b[H"))
 
 		os.Exit(0)
-	
+
+	case HOME_KEY:
+		editorConfig.cursor_x = 0
+	case END_KEY:
+		editorConfig.cursor_x = editorConfig.screencols - 1
+	case PAGE_UP, PAGE_DOWN:
+		for times := editorConfig.screenrows; times > 0; times-- {
+			if ch == PAGE_UP {
+				editorMoveCursor(ARROW_UP)
+			} else {
+				editorMoveCursor(ARROW_DOWN)
+			}
+		}
 	case ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT:
 		editorMoveCursor(ch)
 	}
@@ -112,26 +133,58 @@ func editorReadKey() int {
 	if err != nil {
 		die(err.Error())
 	}
-	
-	if c == 1 {
+
+	switch c {
+	case 1:
 		return int(ch[0])
-	} else if c == 2 {
+	case 2:
 		return '\x1b'
-	} else if ch[0] == '\x1b' {
-		if ch[1] == '[' {
-			switch ch[2] {
-			case 'A':
-				return ARROW_UP
-			case 'B':
-				return ARROW_DOWN
-			case 'C':
-				return ARROW_RIGHT
-			case 'D':
-				return ARROW_LEFT
+	case 3, 4:
+		if ch[0] == '\x1b' {
+			if ch[1] == '[' || ch[1] == 'O' {
+				if ch[2] >= '0' && ch[2] <= '9' {
+					if c <= 3 || ch[3] != '~' {
+						return '\x1b'
+					}
+
+					switch ch[2] {
+					case '1':
+						return HOME_KEY
+					case '3':
+						return DEL_KEY
+					case '4':
+						return END_KEY
+					case '5':
+						return PAGE_UP
+					case '6':
+						return PAGE_DOWN
+					case '7':
+						return HOME_KEY
+					case '8':
+						return END_KEY
+					}
+
+				} else {
+
+					switch ch[2] {
+					case 'A':
+						return ARROW_UP
+					case 'B':
+						return ARROW_DOWN
+					case 'C':
+						return ARROW_RIGHT
+					case 'D':
+						return ARROW_LEFT
+					case 'H':
+						return HOME_KEY
+					case 'F':
+						return END_KEY
+					}
+
+				}
 			}
 		}
 	}
-	
 	return '\x1b'
 }
 
