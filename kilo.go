@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"os"
@@ -14,9 +15,22 @@ func CONTROL_KEY(key byte) int {
 	return int(key & 0x1f)
 }
 
+type EditorFileBuffer struct {
+	buffer [][]byte
+}
+
+func (e *EditorFileBuffer) append(bytes []byte) {
+	e.buffer = append(e.buffer, bytes)
+}
+
+func (e *EditorFileBuffer) len() int {
+	return len(e.buffer)
+}
+
 type EditorConfig struct {
 	cursor_y, cursor_x     int
 	screenrows, screencols int
+	fileBuffer             *EditorFileBuffer
 }
 
 var editorConfig = EditorConfig{}
@@ -24,22 +38,30 @@ var byteBuffer = bytes.Buffer{}
 
 func editorDrawRows() {
 	for rowNo := 0; rowNo < editorConfig.screenrows; rowNo++ {
-		if rowNo == editorConfig.screenrows/3 {
+		if rowNo >= editorConfig.fileBuffer.len() {
+			if rowNo == editorConfig.screenrows/3 {
 
-			welcome := fmt.Sprintf("Kilo editor -- version %s", KILO_VERSION)
+				welcome := fmt.Sprintf("Kilo editor -- version %s", KILO_VERSION)
 
-			padding := (editorConfig.screencols - len(welcome)) / 2
-			if padding > 0 {
+				padding := (editorConfig.screencols - len(welcome)) / 2
+				if padding > 0 {
+					byteBuffer.Write([]byte("~"))
+				}
+				for ; padding > 0; padding-- {
+					byteBuffer.Write([]byte(" "))
+				}
+
+				byteBuffer.WriteString(welcome)
+
+			} else {
 				byteBuffer.Write([]byte("~"))
 			}
-			for ; padding > 0; padding-- {
-				byteBuffer.Write([]byte(" "))
-			}
-
-			byteBuffer.WriteString(welcome)
-
 		} else {
-			byteBuffer.Write([]byte("~"))
+			line := editorConfig.fileBuffer.buffer[0]
+			if len(line) > editorConfig.screencols {
+				line = line[:editorConfig.screencols]
+			}
+			byteBuffer.Write(line)
 		}
 
 		byteBuffer.Write([]byte("\x1b[K"))
@@ -188,6 +210,19 @@ func editorReadKey() int {
 	return '\x1b'
 }
 
+func editorOpen(filepath string) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		die(err.Error())
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	if scanner.Scan() {
+		editorConfig.fileBuffer.append(scanner.Bytes())
+	}
+}
+
 func initEditor() {
 	width, height, err := term.GetSize(int(os.Stdin.Fd()))
 	if err != nil {
@@ -197,6 +232,7 @@ func initEditor() {
 	editorConfig.screencols = width
 	editorConfig.cursor_y = 0
 	editorConfig.cursor_x = 0
+	editorConfig.fileBuffer = &EditorFileBuffer{}
 }
 
 func enableRawMode() *term.State {
@@ -221,6 +257,9 @@ func main() {
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
 
 	initEditor()
+	if len(os.Args) > 1 {
+		editorOpen(os.Args[1])
+	}
 
 	for {
 		editorRefreshScreen()
