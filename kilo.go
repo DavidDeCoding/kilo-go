@@ -82,6 +82,8 @@ func editorDrawRows() {
 }
 
 func editorRefreshScreen() {
+	editorScroll()
+	
 	byteBuffer.WriteString("\x1b[H")
 
 	editorDrawRows()
@@ -90,8 +92,8 @@ func editorRefreshScreen() {
 	byteBuffer.WriteString(
 		fmt.Sprintf(
 			"\x1b[%d;%dH",
-			editorConfig.cursor_y+1,
-			editorConfig.cursor_x+1,
+			(editorConfig.cursor_y-editorConfig.offsetrows)+1,
+			(editorConfig.cursor_x-editorConfig.offsetcols)+1,
 		),
 	)
 
@@ -110,6 +112,24 @@ const (
 	PAGE_DOWN
 )
 
+func editorScroll() {
+	if editorConfig.cursor_y < editorConfig.offsetrows {
+		editorConfig.offsetrows = editorConfig.cursor_y
+	}
+
+	if editorConfig.cursor_y >= (editorConfig.screenrows + editorConfig.offsetrows) {
+		editorConfig.offsetrows = editorConfig.cursor_y - editorConfig.screenrows + 1
+	}
+
+	if editorConfig.cursor_x < editorConfig.offsetcols {
+		editorConfig.offsetcols = editorConfig.cursor_x
+	}
+
+	if editorConfig.cursor_x >= (editorConfig.screencols + editorConfig.offsetcols) {
+		editorConfig.offsetcols = editorConfig.cursor_x - editorConfig.screencols + 1
+	}
+}
+
 func editorMoveCursor(key int) {
 	switch key {
 	case ARROW_LEFT:
@@ -117,15 +137,13 @@ func editorMoveCursor(key int) {
 			editorConfig.cursor_x -= 1
 		}
 	case ARROW_RIGHT:
-		if editorConfig.cursor_x != editorConfig.screencols-1 {
-			editorConfig.cursor_x += 1
-		}
+		editorConfig.cursor_x += 1
 	case ARROW_UP:
 		if editorConfig.cursor_y != 0 {
 			editorConfig.cursor_y -= 1
 		}
 	case ARROW_DOWN:
-		if editorConfig.cursor_y != editorConfig.screenrows-1 {
+		if editorConfig.cursor_y < editorConfig.fileBuffer.len() {
 			editorConfig.cursor_y += 1
 		}
 	}
