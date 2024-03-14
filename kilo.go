@@ -38,6 +38,7 @@ type EditorConfig struct {
 	cursor_y, cursor_x     int
 	screenrows, screencols int
 	fileBuffer             *EditorFileBuffer
+	offsetrows, offsetcols int
 }
 
 var editorConfig = EditorConfig{}
@@ -45,7 +46,8 @@ var byteBuffer = bytes.Buffer{}
 
 func editorDrawRows() {
 	for rowNo := 0; rowNo < editorConfig.screenrows; rowNo++ {
-		if rowNo >= editorConfig.fileBuffer.len() {
+		offsetRowNo := rowNo + editorConfig.offsetrows
+		if offsetRowNo >= editorConfig.fileBuffer.len() {
 			if rowNo == editorConfig.screenrows/3 {
 
 				welcome := fmt.Sprintf("Kilo editor -- version %s", KILO_VERSION)
@@ -64,9 +66,9 @@ func editorDrawRows() {
 				byteBuffer.Write([]byte("~"))
 			}
 		} else {
-			line := editorConfig.fileBuffer.line(rowNo)
+			line := editorConfig.fileBuffer.line(offsetRowNo)
 			if len(line) > editorConfig.screencols {
-				line = line[:editorConfig.screencols]
+				line = line[editorConfig.offsetcols : editorConfig.screencols-1+editorConfig.offsetcols]
 			}
 			byteBuffer.WriteString(line)
 		}
@@ -240,6 +242,8 @@ func initEditor() {
 	editorConfig.cursor_y = 0
 	editorConfig.cursor_x = 0
 	editorConfig.fileBuffer = &EditorFileBuffer{}
+	editorConfig.offsetrows = 0
+	editorConfig.offsetcols = 0
 }
 
 func enableRawMode() *term.State {
