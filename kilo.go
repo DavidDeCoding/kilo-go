@@ -16,15 +16,22 @@ func CONTROL_KEY(key byte) int {
 }
 
 type EditorFileBuffer struct {
-	buffer [][]byte
+	buffer []string
 }
 
-func (e *EditorFileBuffer) append(bytes []byte) {
-	e.buffer = append(e.buffer, bytes)
+func (e *EditorFileBuffer) append(line string) {
+	e.buffer = append(e.buffer, line)
 }
 
 func (e *EditorFileBuffer) len() int {
 	return len(e.buffer)
+}
+
+func (e *EditorFileBuffer) line(number int) string {
+	if len(e.buffer) <= number {
+		die(fmt.Sprintf("No line %d", number))
+	}
+	return e.buffer[number]
 }
 
 type EditorConfig struct {
@@ -57,23 +64,23 @@ func editorDrawRows() {
 				byteBuffer.Write([]byte("~"))
 			}
 		} else {
-			line := editorConfig.fileBuffer.buffer[0]
+			line := editorConfig.fileBuffer.line(rowNo)
 			if len(line) > editorConfig.screencols {
 				line = line[:editorConfig.screencols]
 			}
-			byteBuffer.Write(line)
+			byteBuffer.WriteString(line)
 		}
 
-		byteBuffer.Write([]byte("\x1b[K"))
+		byteBuffer.WriteString("\x1b[K")
 
 		if rowNo < editorConfig.screenrows-1 {
-			byteBuffer.Write([]byte("\r\n"))
+			byteBuffer.WriteString("\r\n")
 		}
 	}
 }
 
 func editorRefreshScreen() {
-	byteBuffer.Write([]byte("\x1b[H"))
+	byteBuffer.WriteString("\x1b[H")
 
 	editorDrawRows()
 
@@ -218,8 +225,8 @@ func editorOpen(filepath string) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	if scanner.Scan() {
-		editorConfig.fileBuffer.append(scanner.Bytes())
+	for scanner.Scan() {
+		editorConfig.fileBuffer.append(scanner.Text())
 	}
 }
 
