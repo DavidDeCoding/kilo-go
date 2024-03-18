@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"golang.org/x/term" // https://pkg.go.dev/golang.org/x/term#section-readme
 )
@@ -52,6 +53,8 @@ type EditorConfig struct {
 	fileBuffer             *EditorFileBuffer
 	fileName               string
 	offsetrows, offsetcols int
+	statusMsg              string
+	lastStatusUpdate       time.Time
 }
 
 var editorConfig = EditorConfig{}
@@ -120,7 +123,23 @@ func editorDrawStatusBar() {
 }
 
 func editorDrawMessageBar() {
+	byteBuffer.WriteString("\x1b[K")
+	msg := editorConfig.statusMsg
+	if len(msg) > editorConfig.screencols {
+		msg = msg[:editorConfig.screencols-1]
+	}
+	if msg != "" && time.Since(editorConfig.lastStatusUpdate).Seconds() < 5.0 {
+		byteBuffer.WriteString(msg)
+	}
+}
 
+func editorSetStatusMessage(msgs ...string) {
+	msgsBuilder := strings.Builder{}
+	for _, msg := range msgs {
+		msgsBuilder.WriteString(msg)
+	}
+	editorConfig.statusMsg = msgsBuilder.String()
+	editorConfig.lastStatusUpdate = time.Now()
 }
 
 func editorRefreshScreen() {
@@ -347,6 +366,8 @@ func main() {
 	if len(os.Args) > 1 {
 		editorOpen(os.Args[1])
 	}
+
+	editorSetStatusMessage("HELP: Ctrl-Q = quit")
 
 	for {
 		editorRefreshScreen()
