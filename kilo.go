@@ -177,8 +177,18 @@ func editorProcessKeyPress() {
 	case HOME_KEY:
 		editorConfig.cursor_x = 0
 	case END_KEY:
-		editorConfig.cursor_x = editorConfig.screencols - 1
+		if editorConfig.cursor_y < editorConfig.fileBuffer.len() {
+			editorConfig.cursor_x = len(editorConfig.fileBuffer.line(editorConfig.cursor_y))
+		}
 	case PAGE_UP, PAGE_DOWN:
+		if ch == PAGE_UP {
+			editorConfig.cursor_y = editorConfig.offsetrows
+		} else {
+			editorConfig.cursor_y = editorConfig.offsetrows + editorConfig.screenrows - 1
+			if editorConfig.cursor_y > editorConfig.fileBuffer.len() {
+				editorConfig.cursor_y = editorConfig.fileBuffer.len()
+			}
+		}
 		for times := editorConfig.screenrows; times > 0; times-- {
 			if ch == PAGE_UP {
 				editorMoveCursor(ARROW_UP)
