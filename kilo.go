@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/term" // https://pkg.go.dev/golang.org/x/term#section-readme
 )
@@ -17,10 +18,21 @@ func CONTROL_KEY(key byte) int {
 
 type EditorFileBuffer struct {
 	buffer []string
+	render []string
 }
 
 func (e *EditorFileBuffer) append(line string) {
 	e.buffer = append(e.buffer, line)
+
+	renderedLine := strings.Builder{}
+	for colNo := 0; colNo < len(line); colNo++ {
+		if line[colNo] == '\t' {
+			renderedLine.WriteByte(' ')
+		} else {
+			renderedLine.WriteByte(line[colNo])
+		}
+	}
+	e.render = append(e.render, renderedLine.String())
 }
 
 func (e *EditorFileBuffer) len() int {
@@ -31,7 +43,7 @@ func (e *EditorFileBuffer) line(number int) string {
 	if len(e.buffer) <= number {
 		die(fmt.Sprintf("No line %d", number))
 	}
-	return e.buffer[number]
+	return e.render[number]
 }
 
 type EditorConfig struct {
@@ -83,7 +95,8 @@ func editorDrawRows() {
 
 func editorRefreshScreen() {
 	editorScroll()
-	
+
+	byteBuffer.WriteString("\x1b[?25l")
 	byteBuffer.WriteString("\x1b[H")
 
 	editorDrawRows()
@@ -96,6 +109,8 @@ func editorRefreshScreen() {
 			(editorConfig.cursor_x-editorConfig.offsetcols)+1,
 		),
 	)
+
+	byteBuffer.WriteString("\x1b[?25h")
 
 	os.Stdout.Write(byteBuffer.Bytes())
 }
