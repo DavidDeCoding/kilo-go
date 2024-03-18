@@ -50,6 +50,7 @@ type EditorConfig struct {
 	cursor_y, cursor_x     int
 	screenrows, screencols int
 	fileBuffer             *EditorFileBuffer
+	fileName               string
 	offsetrows, offsetcols int
 }
 
@@ -87,10 +88,39 @@ func editorDrawRows() {
 
 		byteBuffer.WriteString("\x1b[K")
 
-		if rowNo < editorConfig.screenrows-1 {
-			byteBuffer.WriteString("\r\n")
-		}
+		byteBuffer.WriteString("\r\n")
 	}
+}
+
+func editorDrawStatusBar() {
+	byteBuffer.WriteString("\x1b[7m")
+	fileName := "[No Name]"
+	if editorConfig.fileName != "" {
+		fileName = editorConfig.fileName
+	}
+	status := strings.Builder{}
+	status.WriteString(fmt.Sprintf(
+		"%.20s - %d lines",
+		fileName,
+		editorConfig.fileBuffer.len()))
+	cursorStatus := fmt.Sprintf("%d/%d",
+		editorConfig.cursor_y+1,
+		editorConfig.fileBuffer.len())
+	for status.Len() < editorConfig.screencols {
+		if editorConfig.screencols-status.Len() == len(cursorStatus) {
+			status.WriteString(cursorStatus)
+		} else {
+			status.WriteByte(' ')
+		}
+
+	}
+	byteBuffer.WriteString(status.String())
+	byteBuffer.WriteString("\x1b[m")
+	byteBuffer.WriteString("\r\n")
+}
+
+func editorDrawMessageBar() {
+
 }
 
 func editorRefreshScreen() {
@@ -100,6 +130,8 @@ func editorRefreshScreen() {
 	byteBuffer.WriteString("\x1b[H")
 
 	editorDrawRows()
+	editorDrawStatusBar()
+	editorDrawMessageBar()
 
 	// byteBuffer.Write([]byte("\x1b[H"))
 	byteBuffer.WriteString(
@@ -269,6 +301,7 @@ func editorOpen(filepath string) {
 	}
 	defer file.Close()
 
+	editorConfig.fileName = filepath
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		editorConfig.fileBuffer.append(scanner.Text())
@@ -280,7 +313,7 @@ func initEditor() {
 	if err != nil {
 		die(err.Error())
 	}
-	editorConfig.screenrows = height
+	editorConfig.screenrows = height - 2
 	editorConfig.screencols = width
 	editorConfig.cursor_y = 0
 	editorConfig.cursor_x = 0
