@@ -346,6 +346,9 @@ func editorProcessKeyPress() {
 
 		os.Exit(0)
 
+	case CONTROL_KEY('s'):
+		editorSave()
+
 	case HOME_KEY:
 		editorConfig.cursor_x = 0
 	case END_KEY:
@@ -443,6 +446,24 @@ func editorReadKey() int {
 	return '\x1b'
 }
 
+func editorSave() {
+	file, err := os.OpenFile(editorConfig.fileName, os.O_CREATE | os.O_TRUNC | os.O_WRONLY, 0600)
+	if err != nil {
+		die(err.Error())
+	}
+	defer file.Close()
+
+	w := bufio.NewWriter(file)
+	for _, line := range editorConfig.fileBuffer.buffer {
+		w.WriteString(line)
+		w.WriteByte('\n')
+	}
+	err = w.Flush()
+	if err != nil {
+		die(err.Error())
+	}
+}
+
 func editorOpen(filepath string) {
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -497,7 +518,7 @@ func main() {
 		editorOpen(os.Args[1])
 	}
 
-	editorSetStatusMessage("HELP: Ctrl-Q = quit")
+	editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit")
 
 	for {
 		editorRefreshScreen()
