@@ -72,10 +72,22 @@ func (e *EditorFileBuffer) del(pos_x int, pos_y int) {
 	e.updateRender()
 }
 
-func (e *EditorFileBuffer) append(line string) {
-	e.buffer = append(e.buffer, line)
+func (e *EditorFileBuffer) insertNewAt(pos_x int, pos_y int, line string) {
+	if pos_x == 0 {
+		e.buffer = append(e.buffer, "")
+		for rowNo := len(e.buffer) - 1; rowNo > pos_y; rowNo-- {
+			e.buffer[rowNo] = e.buffer[rowNo-1]
+		}
+		e.buffer[pos_y] = line
+	} else {
+
+	}
 
 	e.updateRender()
+}
+
+func (e *EditorFileBuffer) append(line string) {
+	e.insertNewAt(0, e.len(), line)
 }
 
 func (e *EditorFileBuffer) len() int {
@@ -111,6 +123,7 @@ func editorInsertChar(character int) {
 		editorConfig.cursor_y,
 		byte(character),
 	)
+	editorConfig.cursor_x += 1
 }
 
 func editorDelChar() {
@@ -134,6 +147,14 @@ func editorDelChar() {
 		editorConfig.cursor_x = prevRowSize
 		editorConfig.cursor_y -= 1
 	}
+}
+
+func editorInsertNewLine() {
+	editorConfig.fileBuffer.insertNewAt(
+		editorConfig.cursor_x,
+		editorConfig.cursor_y,
+		"",
+	)
 }
 
 func editorDrawRows() {
@@ -280,7 +301,12 @@ func editorMoveCursor(key int) {
 			editorConfig.cursor_x -= 1
 		}
 	case ARROW_RIGHT:
-		editorConfig.cursor_x += 1
+		if editorConfig.cursor_y < editorConfig.fileBuffer.len() {
+			if editorConfig.cursor_x < len(editorConfig.fileBuffer.line(editorConfig.cursor_y)) {
+				editorConfig.cursor_x += 1
+			}
+		}
+
 	case ARROW_UP:
 		if editorConfig.cursor_y != 0 {
 			editorConfig.cursor_y -= 1
@@ -288,6 +314,9 @@ func editorMoveCursor(key int) {
 	case ARROW_DOWN:
 		if editorConfig.cursor_y < editorConfig.fileBuffer.len() {
 			editorConfig.cursor_y += 1
+			if editorConfig.cursor_x > len(editorConfig.fileBuffer.line(editorConfig.cursor_y)) {
+				editorConfig.cursor_x = len(editorConfig.fileBuffer.line(editorConfig.cursor_y))
+			}
 		}
 	}
 }
@@ -297,7 +326,7 @@ func editorProcessKeyPress() {
 
 	switch ch {
 	case '\r':
-		break
+		editorInsertNewLine()
 
 	case CONTROL_KEY('q'):
 		os.Stdout.Write([]byte("\x1b[2J"))
