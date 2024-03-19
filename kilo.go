@@ -239,6 +239,28 @@ func editorDrawMessageBar() {
 	}
 }
 
+func editorPromptSaveAs() string {
+	buffer := bytes.Buffer {}
+	for {
+		editorSetStatusMessage("Save as: ", buffer.String())
+		editorRefreshScreen()
+
+		ch := editorReadKey()
+		switch ch {
+		case '\x1b':
+			editorSetStatusMessage("")
+			return ""
+		case '\r':
+			editorSetStatusMessage("")
+			return buffer.String()
+		default:
+			if ch < 128 {
+				buffer.WriteByte(byte(ch))
+			}
+		}
+	}
+}
+
 func editorSetStatusMessage(msgs ...string) {
 	msgsBuilder := strings.Builder{}
 	for _, msg := range msgs {
@@ -447,6 +469,10 @@ func editorReadKey() int {
 }
 
 func editorSave() {
+	if editorConfig.fileName == "" {
+		editorConfig.fileName = editorPromptSaveAs()
+	}
+
 	file, err := os.OpenFile(editorConfig.fileName, os.O_CREATE | os.O_TRUNC | os.O_WRONLY, 0600)
 	if err != nil {
 		die(err.Error())
