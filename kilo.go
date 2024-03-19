@@ -22,7 +22,7 @@ type EditorFileBuffer struct {
 	render []string
 }
 
-func (e* EditorFileBuffer) updateRender() {
+func (e *EditorFileBuffer) updateRender() {
 	e.render = make([]string, 0)
 	for rowNo := 0; rowNo < len(e.buffer); rowNo++ {
 		renderedLine := strings.Builder{}
@@ -37,29 +37,38 @@ func (e* EditorFileBuffer) updateRender() {
 	}
 }
 
-func (e* EditorFileBuffer) insert(pos_x int, pos_y int, character byte) {
+func (e *EditorFileBuffer) insert(pos_x int, pos_y int, character byte) {
 	if pos_x < 0 || pos_x > len(e.buffer[pos_y]) {
 		pos_x = len(e.buffer[pos_y])
 	}
 
-	rowBuilder := strings.Builder {}
+	rowBuilder := strings.Builder{}
 	rowBuilder.WriteString(e.buffer[pos_y][:pos_x])
 	rowBuilder.WriteByte(character)
 	rowBuilder.WriteString(e.buffer[pos_y][pos_x:])
 	e.buffer[pos_y] = rowBuilder.String()
-	
+
 	e.updateRender()
 }
 
-func (e* EditorFileBuffer) del(pos_x int, pos_y int) {
+func (e *EditorFileBuffer) del(pos_x int, pos_y int) {
 	if pos_x < 0 || pos_x > len(e.buffer[pos_y]) {
 		return
 	}
 
-	rowBuilder := strings.Builder {}
-	rowBuilder.WriteString(e.buffer[pos_y][:pos_x-1])
-	rowBuilder.WriteString(e.buffer[pos_y][pos_x:])
-	e.buffer[pos_y] = rowBuilder.String()
+	if pos_x > 0 {
+		rowBuilder := strings.Builder{}
+		rowBuilder.WriteString(e.buffer[pos_y][:pos_x-1])
+		rowBuilder.WriteString(e.buffer[pos_y][pos_x:])
+		e.buffer[pos_y] = rowBuilder.String()
+	} else {
+		rowBuilder := strings.Builder{}
+		rowBuilder.WriteString(e.buffer[pos_y-1])
+		rowBuilder.WriteString(e.buffer[pos_y])
+		e.buffer[pos_y-1] = rowBuilder.String()
+		e.buffer = append(e.buffer[:pos_y], e.buffer[pos_y+1:]...)
+	}
+
 	e.updateRender()
 }
 
@@ -98,7 +107,7 @@ func editorInsertChar(character int) {
 		editorConfig.fileBuffer.append("")
 	}
 	editorConfig.fileBuffer.insert(
-		editorConfig.cursor_x, 
+		editorConfig.cursor_x,
 		editorConfig.cursor_y,
 		byte(character),
 	)
@@ -108,13 +117,22 @@ func editorDelChar() {
 	if editorConfig.cursor_y == editorConfig.fileBuffer.len() {
 		return
 	}
+	if editorConfig.cursor_x == 0 && editorConfig.cursor_y == 0 {
+		return
+	}
+
+	prevRowSize := len(editorConfig.fileBuffer.line(editorConfig.cursor_y - 1))
+
+	editorConfig.fileBuffer.del(
+		editorConfig.cursor_x,
+		editorConfig.cursor_y,
+	)
 
 	if editorConfig.cursor_x > 0 {
-		editorConfig.fileBuffer.del(
-			editorConfig.cursor_x,
-			editorConfig.cursor_y,
-		)
 		editorConfig.cursor_x -= 1
+	} else {
+		editorConfig.cursor_x = prevRowSize
+		editorConfig.cursor_y -= 1
 	}
 }
 
@@ -225,7 +243,7 @@ func editorRefreshScreen() {
 }
 
 const (
-	BACKSPACE = iota + 127
+	BACKSPACE  = iota + 127
 	ARROW_LEFT = iota + 1000
 	ARROW_RIGHT
 	ARROW_UP
@@ -280,7 +298,7 @@ func editorProcessKeyPress() {
 	switch ch {
 	case '\r':
 		break
-	
+
 	case CONTROL_KEY('q'):
 		os.Stdout.Write([]byte("\x1b[2J"))
 		os.Stdout.Write([]byte("\x1b[H"))
@@ -293,9 +311,9 @@ func editorProcessKeyPress() {
 		if editorConfig.cursor_y < editorConfig.fileBuffer.len() {
 			editorConfig.cursor_x = len(editorConfig.fileBuffer.line(editorConfig.cursor_y))
 		}
-	
+
 	case BACKSPACE, CONTROL_KEY('h'), DEL_KEY:
-		if (ch == DEL_KEY) {
+		if ch == DEL_KEY {
 			editorMoveCursor(ARROW_RIGHT)
 		}
 		editorDelChar()
