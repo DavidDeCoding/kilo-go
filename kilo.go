@@ -38,8 +38,8 @@ func (e* EditorFileBuffer) updateRender() {
 }
 
 func (e* EditorFileBuffer) insert(pos_x int, pos_y int, character byte) {
-	if pos_y < 0 || pos_y > e.len() {
-		pos_y = e.len()
+	if pos_x < 0 || pos_x > len(e.buffer[pos_y]) {
+		pos_x = len(e.buffer[pos_y])
 	}
 
 	rowBuilder := strings.Builder {}
@@ -48,6 +48,18 @@ func (e* EditorFileBuffer) insert(pos_x int, pos_y int, character byte) {
 	rowBuilder.WriteString(e.buffer[pos_y][pos_x:])
 	e.buffer[pos_y] = rowBuilder.String()
 	
+	e.updateRender()
+}
+
+func (e* EditorFileBuffer) del(pos_x int, pos_y int) {
+	if pos_x < 0 || pos_x > len(e.buffer[pos_y]) {
+		return
+	}
+
+	rowBuilder := strings.Builder {}
+	rowBuilder.WriteString(e.buffer[pos_y][:pos_x-1])
+	rowBuilder.WriteString(e.buffer[pos_y][pos_x:])
+	e.buffer[pos_y] = rowBuilder.String()
 	e.updateRender()
 }
 
@@ -90,6 +102,20 @@ func editorInsertChar(character int) {
 		editorConfig.cursor_y,
 		byte(character),
 	)
+}
+
+func editorDelChar() {
+	if editorConfig.cursor_y == editorConfig.fileBuffer.len() {
+		return
+	}
+
+	if editorConfig.cursor_x > 0 {
+		editorConfig.fileBuffer.del(
+			editorConfig.cursor_x,
+			editorConfig.cursor_y,
+		)
+		editorConfig.cursor_x -= 1
+	}
 }
 
 func editorDrawRows() {
@@ -199,6 +225,7 @@ func editorRefreshScreen() {
 }
 
 const (
+	BACKSPACE = iota + 127
 	ARROW_LEFT = iota + 1000
 	ARROW_RIGHT
 	ARROW_UP
@@ -251,6 +278,9 @@ func editorProcessKeyPress() {
 	ch := editorReadKey()
 
 	switch ch {
+	case '\r':
+		break
+	
 	case CONTROL_KEY('q'):
 		os.Stdout.Write([]byte("\x1b[2J"))
 		os.Stdout.Write([]byte("\x1b[H"))
@@ -263,6 +293,13 @@ func editorProcessKeyPress() {
 		if editorConfig.cursor_y < editorConfig.fileBuffer.len() {
 			editorConfig.cursor_x = len(editorConfig.fileBuffer.line(editorConfig.cursor_y))
 		}
+	
+	case BACKSPACE, CONTROL_KEY('h'), DEL_KEY:
+		if (ch == DEL_KEY) {
+			editorMoveCursor(ARROW_RIGHT)
+		}
+		editorDelChar()
+
 	case PAGE_UP, PAGE_DOWN:
 		if ch == PAGE_UP {
 			editorConfig.cursor_y = editorConfig.offsetrows
@@ -284,7 +321,6 @@ func editorProcessKeyPress() {
 	default:
 		editorInsertChar(ch)
 	}
-
 }
 
 func editorReadKey() int {
