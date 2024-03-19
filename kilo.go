@@ -22,18 +22,39 @@ type EditorFileBuffer struct {
 	render []string
 }
 
+func (e* EditorFileBuffer) updateRender() {
+	e.render = make([]string, 0)
+	for rowNo := 0; rowNo < len(e.buffer); rowNo++ {
+		renderedLine := strings.Builder{}
+		for colNo := 0; colNo < len(e.buffer[rowNo]); colNo++ {
+			if e.buffer[rowNo][colNo] == '\t' {
+				renderedLine.WriteByte(' ')
+			} else {
+				renderedLine.WriteByte(e.buffer[rowNo][colNo])
+			}
+		}
+		e.render = append(e.render, renderedLine.String())
+	}
+}
+
+func (e* EditorFileBuffer) insert(pos_x int, pos_y int, character byte) {
+	if pos_y < 0 || pos_y > e.len() {
+		pos_y = e.len()
+	}
+
+	rowBuilder := strings.Builder {}
+	rowBuilder.WriteString(e.buffer[pos_y][:pos_x])
+	rowBuilder.WriteByte(character)
+	rowBuilder.WriteString(e.buffer[pos_y][pos_x:])
+	e.buffer[pos_y] = rowBuilder.String()
+	
+	e.updateRender()
+}
+
 func (e *EditorFileBuffer) append(line string) {
 	e.buffer = append(e.buffer, line)
 
-	renderedLine := strings.Builder{}
-	for colNo := 0; colNo < len(line); colNo++ {
-		if line[colNo] == '\t' {
-			renderedLine.WriteByte(' ')
-		} else {
-			renderedLine.WriteByte(line[colNo])
-		}
-	}
-	e.render = append(e.render, renderedLine.String())
+	e.updateRender()
 }
 
 func (e *EditorFileBuffer) len() int {
@@ -59,6 +80,17 @@ type EditorConfig struct {
 
 var editorConfig = EditorConfig{}
 var byteBuffer = bytes.Buffer{}
+
+func editorInsertChar(character int) {
+	if editorConfig.cursor_y == editorConfig.fileBuffer.len() {
+		editorConfig.fileBuffer.append("")
+	}
+	editorConfig.fileBuffer.insert(
+		editorConfig.cursor_x, 
+		editorConfig.cursor_y,
+		byte(character),
+	)
+}
 
 func editorDrawRows() {
 	for rowNo := 0; rowNo < editorConfig.screenrows; rowNo++ {
@@ -249,7 +281,10 @@ func editorProcessKeyPress() {
 		}
 	case ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT:
 		editorMoveCursor(ch)
+	default:
+		editorInsertChar(ch)
 	}
+
 }
 
 func editorReadKey() int {
