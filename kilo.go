@@ -239,10 +239,10 @@ func editorDrawMessageBar() {
 	}
 }
 
-func editorPromptSaveAs() string {
-	buffer := bytes.Buffer {}
+func editorPrompt(prefix string) string {
+	buffer := bytes.Buffer{}
 	for {
-		editorSetStatusMessage("Save as: ", buffer.String())
+		editorSetStatusMessage(prefix, buffer.String())
 		editorRefreshScreen()
 
 		ch := editorReadKey()
@@ -371,6 +371,9 @@ func editorProcessKeyPress() {
 	case CONTROL_KEY('s'):
 		editorSave()
 
+	case CONTROL_KEY('f'):
+		editorFind()
+
 	case HOME_KEY:
 		editorConfig.cursor_x = 0
 	case END_KEY:
@@ -470,10 +473,10 @@ func editorReadKey() int {
 
 func editorSave() {
 	if editorConfig.fileName == "" {
-		editorConfig.fileName = editorPromptSaveAs()
+		editorConfig.fileName = editorPrompt("Save as: ")
 	}
 
-	file, err := os.OpenFile(editorConfig.fileName, os.O_CREATE | os.O_TRUNC | os.O_WRONLY, 0600)
+	file, err := os.OpenFile(editorConfig.fileName, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
 		die(err.Error())
 	}
@@ -487,6 +490,35 @@ func editorSave() {
 	err = w.Flush()
 	if err != nil {
 		die(err.Error())
+	}
+}
+
+func editorFind() {
+	saved_cx := editorConfig.cursor_x
+	saved_cy := editorConfig.cursor_y
+	saved_offsetcols := editorConfig.offsetcols
+	saved_offsetrows := editorConfig.offsetrows
+
+	query := editorPrompt("Search: ")
+
+	if query == "" {
+		editorConfig.cursor_x = saved_cx
+		editorConfig.cursor_y = saved_cy
+		editorConfig.offsetcols = saved_offsetcols
+		editorConfig.offsetrows = saved_offsetrows
+		return
+	}
+
+	for idx := editorConfig.cursor_y; idx < editorConfig.fileBuffer.len(); idx++ {
+		row := editorConfig.fileBuffer.line(idx)
+
+		matchIdx := strings.Index(row, query)
+		if matchIdx != -1 {
+			editorConfig.cursor_x = matchIdx
+			editorConfig.cursor_y = idx
+			editorConfig.offsetrows = editorConfig.fileBuffer.len()
+			break
+		}
 	}
 }
 
@@ -544,7 +576,7 @@ func main() {
 		editorOpen(os.Args[1])
 	}
 
-	editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit")
+	editorSetStatusMessage("HELP: Ctrl-F = find | Ctrl-S = save | Ctrl-Q = quit")
 
 	for {
 		editorRefreshScreen()
