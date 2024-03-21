@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -530,6 +531,16 @@ func editorFind() {
 func editorOpen(filepath string) {
 	file, err := os.Open(filepath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			//Create a new file with given filepath
+			file, err = os.Create(filepath)
+			if err != nil {
+				die(err.Error())
+			}
+			defer file.Close()
+			editorConfig.fileName = filepath
+			return
+		}
 		die(err.Error())
 	}
 	defer file.Close()
