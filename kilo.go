@@ -115,6 +115,7 @@ type EditorConfig struct {
 
 var editorConfig = EditorConfig{}
 var byteBuffer = bytes.Buffer{}
+var termimalState *term.State
 
 func editorInsertChar(character int) {
 	if editorConfig.cursor_y == editorConfig.fileBuffer.len() {
@@ -365,6 +366,7 @@ func editorProcessKeyPress() {
 	case CONTROL_KEY('q'):
 		os.Stdout.Write([]byte("\x1b[2J"))
 		os.Stdout.Write([]byte("\x1b[H"))
+		term.Restore(int(os.Stdout.Fd()), termimalState)
 
 		os.Exit(0)
 
@@ -550,26 +552,26 @@ func initEditor() {
 	editorConfig.offsetcols = 0
 }
 
-func enableRawMode() *term.State {
+func enableRawMode() {
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	termimalState = oldState
+
 	if err != nil {
 		die(err.Error())
 	}
-
-	return oldState
 }
 
 func die(str string) {
 	os.Stdout.Write([]byte("\x1b[2J"))
 	os.Stdout.Write([]byte("\x1b[H"))
+	term.Restore(int(os.Stdout.Fd()), termimalState)
 
 	fmt.Println(str)
 	os.Exit(1)
 }
 
 func main() {
-	oldState := enableRawMode()
-	defer term.Restore(int(os.Stdin.Fd()), oldState)
+	enableRawMode()
 
 	initEditor()
 	if len(os.Args) > 1 {
