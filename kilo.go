@@ -349,8 +349,11 @@ func editorMoveCursor(key int) {
 	case ARROW_DOWN:
 		if editorConfig.cursor_y < editorConfig.fileBuffer.len() {
 			editorConfig.cursor_y += 1
-			if editorConfig.cursor_x > len(editorConfig.fileBuffer.line(editorConfig.cursor_y)) {
+			if editorConfig.cursor_y < editorConfig.fileBuffer.len() &&
+				editorConfig.cursor_x > len(editorConfig.fileBuffer.line(editorConfig.cursor_y)) {
 				editorConfig.cursor_x = len(editorConfig.fileBuffer.line(editorConfig.cursor_y))
+			} else {
+				editorConfig.cursor_x = 0
 			}
 		}
 	}
