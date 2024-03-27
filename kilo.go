@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -528,13 +529,19 @@ func editorFind() {
 }
 
 func editorOpen(filepath string) {
+	editorConfig.fileName = filepath
+	_, err := os.Stat(filepath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			die(err.Error())
+		}
+		return
+	}
 	file, err := os.Open(filepath)
 	if err != nil {
 		die(err.Error())
 	}
 	defer file.Close()
-
-	editorConfig.fileName = filepath
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		editorConfig.fileBuffer.append(scanner.Text())
